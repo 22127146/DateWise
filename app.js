@@ -6,7 +6,10 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';
 import connectDB from './config/db.js';
-import {loginUser, signupUser, handle_submit_onboarding} from './controllers/userController.js';
+
+import {getUser, loginUser, signupUser, handle_submit_onboarding} from './controllers/userController.js';
+import {getLocations} from './controllers/locationController.js';
+import {createPlan, getTags, generatePlan} from './controllers/planController.js';
 
 dotenv.config();
 connectDB();
@@ -87,7 +90,13 @@ app.engine(
 
 app.set("view engine", "hbs");
 
+// Create global variable to store data
+global.locationData = [];
+global.tagData = [];
+global.userData = [];
+
 // Định nghĩa route cho đường dẫn gốc ("/")
+
 app.get('/signin', (req, res) => {
   if (req.session.user)
     res.redirect('/');
@@ -135,6 +144,7 @@ app.get('/onboarding2', (req, res) => {
         css: "/css/onboarding2.css",
     });
 });
+app.post('/submit_onboarding', handle_submit_onboarding);
 
 app.get("/homepage", (req, res) => {
     res.render("homepage", {
@@ -151,6 +161,7 @@ app.get("/planning", (req, res) => {
         css: "/css/planning.css",
     });
 });
+app.post('/createPlan', createPlan);
 
 app.get("/plandetails", (req, res) => {
     res.render("plandetails", {
@@ -159,6 +170,7 @@ app.get("/plandetails", (req, res) => {
         css: "/css/plandetails.css",
     });
 });
+app.get('/generatePlan', generatePlan);
 
 app.get("/profile", (req, res) => {
     res.render("profile", {
@@ -175,7 +187,80 @@ app.get("/locationdetails", (req, res) => {
         css: "/css/locationdetails.css",
     });
 });
-app.post('/submit_onboarding', handle_submit_onboarding);
+
+// Load locations data
+getLocations()
+  .then(locations => {
+    global.locationData = locations;
+    // console.log('Locations loaded and stored in global variable:', global.locationData[0]);
+  })
+  .catch(error => {
+    console.error('Error loading locations:', error);
+});
+app.get('/locations', async (req, res) => {
+  res.json(global.locationData);
+});
+
+// Load users data
+getUser()
+  .then(users => {
+    global.userData = users;
+    // console.log('Users loaded and stored in global variable:', global.userData[0]);
+  })
+  .catch(error => {
+    console.error('Error loading users:', error);
+});
+app.get('/users', async (req, res) => {
+  res.json(global.userData);
+});
+app.get('/getCurrentUser1', async (req, res) => {
+  res.json(global.userData[0]);
+});
+
+
+// Load tags data
+getTags()
+  .then(tags => {
+    global.tagData = tags;
+    // console.log('Tags loaded and stored in global variable:', global.tagData[0]);
+  })
+  .catch(error => {
+    console.error('Error loading tags:', error);
+});
+app.get('/tags', async (req, res) => {
+  res.json(global.tagData);
+});
+
+// Function to load image of location's records
+async function loadFetch() {
+  const { default: fetch } = await import('node-fetch');
+
+  app.get('/proxy-image', async (req, res) => {
+    const imageUrl = req.query.url;
+    if (!imageUrl) {
+      return res.status(400).send('Missing image URL');
+    }
+
+    try {
+      const response = await fetch(imageUrl);
+      if (!response.ok) {
+        return res.status(response.status).send(response.statusText);
+      }
+
+      const imageBuffer = await response.arrayBuffer();
+      const buffer = Buffer.from(imageBuffer);
+      res.set('Content-Type', response.headers.get('content-type'));
+      res.send(buffer);
+    } catch (error) {
+      console.error('Error fetching image:', error);
+      res.status(500).send('Error fetching image');
+    }
+  });
+}
+
+loadFetch();
+
+
 app.get('/', (req, res) => {
   res.redirect('/homepage');
 });
@@ -198,5 +283,5 @@ app.post('/setCurrentUser', (req, res) => {
   }
 })
 app.listen(port, () => {
-  console.log(`Server đang lắng nghe trên cổng ${port}`);
+  console.log(`Server đang lắng nghe trên http://localhost:${port}`);
 });

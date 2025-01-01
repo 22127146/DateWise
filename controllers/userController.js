@@ -98,6 +98,17 @@ const handle_submit_onboarding = async(req, res) => {
     }
 };
 
-export {loginUser, signupUser, handle_submit_onboarding};
+const getUser = async (req, res) => {
+    try {
+        const users = await Users.find();
+        // console.log(locations[0]);
+        // res.status(200).json(locations);
+        return users;
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+}
+
+export {getUser, loginUser, signupUser, handle_submit_onboarding};
             
 
